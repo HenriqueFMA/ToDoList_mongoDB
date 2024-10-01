@@ -11,6 +11,7 @@ const Card = () => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pendentes');
   const [activeTaskId, setActiveTaskId] = useState(null); // Armazena o ID da tarefa ativa
+  const [editingTask, setEditingTask] = useState(null); // Armazena a tarefa que está sendo editada
 
   // Abre o pop-up
   const handleOpenPopup = () => {
@@ -20,120 +21,119 @@ const Card = () => {
   // Fecha o pop-up
   const handleClosePopup = () => {
     setIsPopupOpen(false);
+    setEditingTask(null); // Limpa a tarefa em edição ao fechar
   };
 
   // Função para buscar todas as tasks não finalizadas
-  const fetchNotFinalizedTasks = () => {
+  const fetchNotFinalizedTasks = async () => {
     setLoading(true);
     setActiveTab('pendentes');
-    axios.get('http://localhost:3000/api/tasks/naofinalizada')
-      .then(response => {
-        setTasks(response.data);
-        setLoading(false);
-      })
-      .catch(error => {
-        setError('Erro ao buscar tasks não finalizadas.');
-        setLoading(false);
-      });
+    try {
+      const response = await axios.get('http://localhost:3000/api/tasks/naofinalizada');
+      setTasks(response.data);
+    } catch (error) {
+      setError('Erro ao buscar tasks não finalizadas.');
+    } finally {
+      setLoading(false);
+    }
   };
-  const fetchFinalizedTasks = () => {
+
+  // Função para buscar todas as tasks finalizadas
+  const fetchFinalizedTasks = async () => {
     setLoading(true);
     setActiveTab('completas');
-    axios.get('http://localhost:3000/api/tasks/finalizada')
-      .then(response => {
-        // Log dos dados recebidos
-        console.log('Dados recebidos:', response.data);
-        
-        // Verifique se a resposta tem dados
-        if (response.data && Array.isArray(response.data)) {
-          setTasks(response.data);
-        } else {
-          throw new Error('Formato de resposta inesperado');
-        }
-      })
-      .catch(error => {
-        // Log do erro
-        console.error('Erro ao buscar tasks finalizadas:', error.response || error.message);
-        setError('Erro ao buscar tasks finalizadas.');
-      })
-      .finally(() => {
-        setLoading(false); // Garanta que o loading seja definido como false após a requisição
-      });
+    try {
+      const response = await axios.get('http://localhost:3000/api/tasks/finalizada');
+      if (Array.isArray(response.data)) {
+        setTasks(response.data);
+      } else {
+        throw new Error('Formato de resposta inesperado');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar tasks finalizadas:', error.response || error.message);
+      setError('Erro ao buscar tasks finalizadas.');
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  
-  
-  
 
   // Função para buscar todas as tasks
-  const fetchAllTasks = () => {
+  const fetchAllTasks = async () => {
     setLoading(true);
     setActiveTab('todas');
-    axios.get('http://localhost:3000/api/tasks')
-      .then(response => {
-        setTasks(response.data);
-        setLoading(false);
-      })
-      .catch(error => {
-        setError('Erro ao buscar todas as tasks.');
-        setLoading(false);
-      });
+    try {
+      const response = await axios.get('http://localhost:3000/api/tasks');
+      setTasks(response.data);
+    } catch (error) {
+      setError('Erro ao buscar todas as tasks.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Atualizar status de finalização de uma task
-  const handleToggleFinalizada = (taskId, finalizada) => {
-    
-    axios.put(`http://localhost:3000/api/tasks/${taskId}`, { finalizada: !finalizada })
-      .then(() => {
-        setTasks(prevTasks =>
-          prevTasks.map(task =>
-            task.task_id === taskId ? { ...task, finalizada: !finalizada } : task
-          )
-        );
-      })
-      .catch(error => {
-        setError('Erro ao atualizar a task.');
-      });
-  };
-  const handleToggleFinalizadaAll = () => {
-    axios.put(`http://localhost:3000/api/tasks`, { finalizada: true }) // Muda todas para finalizada
-      .then(() => {
-        setTasks(prevTasks =>
-          prevTasks.map(task => ({ ...task, finalizada: true })) // Atualiza todas as tarefas para finalizadas
-        );
-      })
-      .catch(error => {
-        setError('Erro ao atualizar as tasks.');
-      });
-  };
-  const handleToggleDelete = (taskId) => {
-    // Usar axios.delete para remover a tarefa
-    axios.delete(`http://localhost:3000/api/tasks/${taskId}`)
-      .then(() => {
-        // Atualiza a lista de tarefas removendo a tarefa deletada
-        setTasks(prevTasks =>
-          prevTasks.filter(task => task.task_id !== taskId) // Filtra a tarefa deletada
-        );
-      })
-      .catch(error => {
-        setError('Erro ao deletar a task.'); // Mensagem de erro
-        console.error(error); // Log do erro para depuração
-      });
+  const handleToggleFinalizada = async (taskId, finalizada) => {
+    try {
+      await axios.put(`http://localhost:3000/api/tasks/${taskId}`, { finalizada: !finalizada });
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.task_id === taskId ? { ...task, finalizada: !finalizada } : task
+        )
+      );
+    } catch (error) {
+      setError('Erro ao atualizar a task.');
+    }
   };
 
+  // Atualizar todas as tasks para "finalizada"
+  const handleToggleFinalizadaAll = async () => {
+    try {
+      await axios.put('http://localhost:3000/api/tasks', { finalizada: true }); // Muda todas para finalizada
+      setTasks(prevTasks =>
+        prevTasks.map(task => ({ ...task, finalizada: true })) // Atualiza todas as tarefas para finalizadas
+      );
+    } catch (error) {
+      setError('Erro ao atualizar as tasks.');
+    }
+  };
 
-  // Função para adicionar uma nova task na lista
+  // Excluir uma task
+  const handleToggleDelete = async (taskId) => {
+    try {
+      await axios.delete(`http://localhost:3000/api/tasks/${taskId}`);
+      setTasks(prevTasks =>
+        prevTasks.filter(task => task.task_id !== taskId) // Remove a tarefa deletada da lista
+      );
+    } catch (error) {
+      setError('Erro ao deletar a task.');
+      console.error(error);
+    }
+  };
+
+  // Adicionar uma nova task
   const handleAddTask = (newTask) => {
-    setTasks((prevTasks) => [...prevTasks, newTask]);
+    setTasks(prevTasks => [...prevTasks, newTask]);
     handleClosePopup(); // Fecha o pop-up após adicionar a task
+    console.log=('ADICIONAR OK')
+  };
+
+  // Atualizar a tarefa existente
+  const handleUpdateTask = (updatedTask) => {
+    console.log=('EDIT OK'),
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.task_id === updatedTask.task_id ? updatedTask : task
+        
+      )
+    );
+    handleClosePopup(); // Fecha o pop-up após atualizar a tarefa
   };
 
   return (
     <>
-      <div onClick={() => setActiveTaskId(null)} className='w-[70%] h-[70%]  top-[15%] left-[50%] translate-x-[-50%] absolute bg-zinc-800'>
+      <div onClick={() => setActiveTaskId(null)} className='w-[70%] h-[70%] top-[15%] left-[50%] translate-x-[-50%] absolute bg-zinc-800'>
         <div>
-          
-          <h1 className='text-7xl text-white ml-[30%] font-sans '> Lista de Tarefas</h1>
+          <h1 className='text-7xl text-white ml-[30%] font-sans'>Lista de Tarefas</h1>
         </div>
         <div>
           <button
@@ -142,22 +142,22 @@ const Card = () => {
           >
             Pendentes
           </button>
-
           <button
             onClick={fetchFinalizedTasks}
-            className={`align-middle h-12 border-b-2 border-t-0 border-l-0 border-r-0 border-purple-400 text-purple-400 ${activeTab === 'completas' ? 'border-white text-white' : ''}`}>
+            className={`align-middle h-12 border-b-2 border-t-0 border-l-0 border-r-0 border-purple-400 text-purple-400 ${activeTab === 'completas' ? 'border-white text-white' : ''}`}
+          >
             Completas
           </button>
           <button
             onClick={fetchAllTasks}
-            className={`align-middle h-12 border-b-2 border-t-0 border-l-0 border-r-0 border-purple-400 text-purple-400 ml-[4%] ${activeTab === 'todas' ? 'border-white text-white' : ''}`}>
+            className={`align-middle h-12 border-b-2 border-t-0 border-l-0 border-r-0 border-purple-400 text-purple-400 ml-[4%] ${activeTab === 'todas' ? 'border-white text-white' : ''}`}
+          >
             Todas
           </button>
-
-
           <button
             onClick={handleOpenPopup}
-            className='align-middle text-purple-400 h-12 w-28 border-b-2 border-t-0 border-l-0 border-r-0 border-purple-400 ml-[30%]  '>
+            className='align-middle text-purple-400 h-12 w-28 border-b-2 border-t-0 border-l-0 border-r-0 border-purple-400 ml-[30%]'
+          >
             Criar tarefa
           </button>
           {activeTab === 'pendentes' && (
@@ -169,7 +169,6 @@ const Card = () => {
             </button>
           )}
         </div>
-
         {error && <p>{error}</p>}
         <div className='bg-red-50 w-[80%] ml-[10%] mt-[2%] border h-[52%]'>
           <ul className='list-none h-[97%] overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200'>
@@ -181,28 +180,29 @@ const Card = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          className="sr-only" 
+                          className="sr-only"
                           checked={task.finalizada}
                           onChange={() => handleToggleFinalizada(task.task_id, task.finalizada)}
                         />
                         <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center transition-all duration-300">
                           {task.finalizada && (
-                            <GoCheck className="w-4 h-4 text-white" /> 
+                            <GoCheck className="w-4 h-4 text-white" />
                           )}
                         </div>
                       </label>
                       <span>{task.title}</span>
                     </div>
-
                     <SlOptionsVertical onClick={(e) => { e.stopPropagation(); setActiveTaskId(task.task_id); }} />
                   </div>
-
                   <br />
                   <p>{task.description}</p>
-
                   {activeTaskId === task.task_id && (
                     <div className="flex justify-end space-x-2 mt-2">
-                      <button on onClick={() => handleToggleDelete(task.task_id)} className="bg-red-500 text-white py-1 px-3 rounded-md">Excluir</button>
+                      <button onClick={() => {
+                        setEditingTask(task); // Define a tarefa para edição
+                        handleOpenPopup(); // Abre o pop-up para edição
+                      }} className="bg-blue-500 text-white py-1 px-3 rounded-md">Editar</button>
+                      <button onClick={() => handleToggleDelete(task.task_id)} className="bg-red-500 text-white py-1 px-3 rounded-md">Excluir</button>
                     </div>
                   )}
                 </li>
@@ -213,10 +213,13 @@ const Card = () => {
           </ul>
         </div>
       </div>
-
-      {/* Exibe o pop-up de criação de tarefa */}
       {isPopupOpen && (
-        <PostTask onClose={handleClosePopup} onAddTask={handleAddTask} />
+        <PostTask 
+          onClose={handleClosePopup} 
+          onAddTask={handleAddTask} 
+          onUpdateTask={handleUpdateTask} 
+          task={editingTask} // Passa a tarefa que está sendo editada
+        />
       )}
     </>
   );
