@@ -18,7 +18,6 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
 
 // Definir o modelo de Task
 const TaskSchema = new mongoose.Schema({
-  task_id: { type: String, required: true }, // Mude de Number para String
   title: { type: String, required: true },
   description: { type: String },
   status: { type: String, default: 'pending' },
@@ -117,7 +116,7 @@ app.put('/api/tasks/:id', async (req, res) => {
       return res.status(400).json({ error: 'O campo finalizada deve ser fornecido.' });
     }
 
-    const updatedTask = await Task.findOneAndUpdate({ task_id: taskId }, { finalizada }, { new: true });
+    const updatedTask = await Task.findOneAndUpdate({ _id: taskId }, { finalizada }, { new: true });
 
     if (!updatedTask) {
       return res.status(404).json({ message: 'Nenhuma tarefa encontrada para atualizar.' });
@@ -143,7 +142,7 @@ app.put('/api/tasks/:id/update', async (req, res) => {
 
     // Atualiza a task no MongoDB
     const updatedTask = await Task.findOneAndUpdate(
-      { task_id: taskId }, // Busca a task pelo ID
+      { _id: taskId }, // Busca a task pelo ID
       { $set: updates }, // Define os novos valores
       { new: true } // Retorna a task atualizada
     );
@@ -165,7 +164,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
   const taskId = req.params.id;
 
   try {
-    const result = await Task.deleteOne({ task_id: taskId });
+    const result = await Task.deleteOne({ _id: taskId });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Task não encontrada.' });
@@ -190,7 +189,7 @@ app.put('/api/tasks/:id', async (req, res) => {
 
     console.log(`Atualizando tarefa com ID: ${taskId} para finalizada: ${finalizada}`);
 
-    const updatedTask = await Task.findOneAndUpdate({ task_id: taskId }, { finalizada }, { new: true });
+    const updatedTask = await Task.findOneAndUpdate({ _id: taskId }, { finalizada }, { new: true });
 
     if (!updatedTask) {
       return res.status(404).json({ message: 'Nenhuma tarefa encontrada para atualizar.' });
