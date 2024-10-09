@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import PostTask from './Post'; // Certifique-se de que o nome do arquivo seja o correto
+import PostTask from './Post';
+import ConfirmacaoDeDeletar from './confirmacaoDeDelete';
 import { SlOptionsVertical } from "react-icons/sl";
 import { GoCheck } from "react-icons/go";
 
@@ -12,6 +13,28 @@ const Card = () => {
   const [activeTab, setActiveTab] = useState('pendentes');
   const [activeTaskId, setActiveTaskId] = useState(null); // Armazena o ID da tarefa ativa
   const [editingTask, setEditingTask] = useState(null); // Armazena a tarefa que está sendo editada
+  const [deletingTask, setDeletingTask] = useState(null);
+  const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
+
+
+  // Função para abrir o popup de confirmação de exclusão
+  const handleToggleDelete = (task) => {
+    setDeletingTask(task); // Armazena a tarefa que será excluída
+    setIsDeletePopupOpen(true); // Abre o popup
+  };
+
+  // Função para excluir a tarefa
+  const handleDeleteTask = async () => {
+    if (deletingTask) {
+      try {
+        await axios.delete(`http://localhost:3000/api/tasks/${deletingTask._id}`);
+        setTasks(prevTasks => prevTasks.filter(task => task._id !== deletingTask._id)); // Remove a tarefa da lista
+        handleCloseDeletePopup(); // Fecha o popup após a exclusão
+      } catch (error) {
+        setError('Erro ao excluir a task.');
+      }
+    }
+  };
 
   // Abre o pop-up
   const handleOpenPopup = () => {
@@ -70,14 +93,21 @@ const Card = () => {
       setLoading(false);
     }
   };
+  const handleOpenDeletePopup = () => {
+    setIsDeletePopupOpen(true);
+  };
 
+  // Função para fechar o popup de confirmação de exclusão
+  const handleCloseDeletePopup = () => {
+    setIsDeletePopupOpen(false);
+  };
   // Atualizar status de finalização de uma task
   const handleToggleFinalizada = async (taskId, finalizada) => {
     try {
       await axios.put(`http://localhost:3000/api/tasks/${taskId}`, { finalizada: !finalizada });
       setTasks(prevTasks =>
         prevTasks.map(task =>
-          task.task_id === taskId ? { ...task, finalizada: !finalizada } : task
+          task._id === taskId ? { ...task, finalizada: !finalizada } : task
         )
       );
     } catch (error) {
@@ -97,38 +127,33 @@ const Card = () => {
     }
   };
 
-  // Excluir uma task
-  const handleToggleDelete = async (taskId) => {
-    try {
-      await axios.delete(`http://localhost:3000/api/tasks/${taskId}`);
-      setTasks(prevTasks =>
-        prevTasks.filter(task => task.task_id !== taskId) // Remove a tarefa deletada da lista
-      );
-    } catch (error) {
-      setError('Erro ao deletar a task.');
-      console.error(error);
-    }
-  };
+
 
   // Adicionar uma nova task
   const handleAddTask = (newTask) => {
     setTasks(prevTasks => [...prevTasks, newTask]);
     handleClosePopup(); // Fecha o pop-up após adicionar a task
-    console.log=('ADICIONAR OK')
+    console.log = ('ADICIONAR OK')
   };
 
   // Atualizar a tarefa existente
   const handleUpdateTask = (updatedTask) => {
-    console.log=('EDIT OK'),
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.task_id === updatedTask.task_id ? updatedTask : task
-        
-      )
-    );
+    console.log = ('EDIT OK'),
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task._id === updatedTask._id ? updatedTask : task
+
+        )
+      );
     handleClosePopup(); // Fecha o pop-up após atualizar a tarefa
   };
+  useEffect(() => {
+    fetchNotFinalizedTasks(); // Chama a função quando o componente é montado
+  }, []); // Dependência vazia para garantir que execute apenas uma vez
 
+  // Renderiza o componente
+  if (loading) return <p>Carregando...</p>;
+  if (error) return <p>{error}</p>;
   return (
     <>
       <div onClick={() => setActiveTaskId(null)} className='w-[70%] h-[70%] top-[15%] left-[50%] translate-x-[-50%] absolute bg-zinc-800'>
@@ -174,7 +199,7 @@ const Card = () => {
           <ul className='list-none h-[97%] overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200'>
             {tasks.length > 0 ? (
               tasks.map(task => (
-                <li key={task.task_id} className='border-b-2 border-t-0 border-l-0 border-r-0 border-gray-300 p-2'>
+                <li key={task._id} className='border-b-2 border-t-0 border-l-0 border-r-0 border-gray-300 p-2'>
                   <div className="flex justify-between items-center border-b-2 border-t-0 border-l-0 border-r-0">
                     <div className="flex items-center space-x-2">
                       <label className="relative inline-flex items-center cursor-pointer">
@@ -182,7 +207,7 @@ const Card = () => {
                           type="checkbox"
                           className="sr-only"
                           checked={task.finalizada}
-                          onChange={() => handleToggleFinalizada(task.task_id, task.finalizada)}
+                          onChange={() => handleToggleFinalizada(task._id, task.finalizada)}
                         />
                         <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center transition-all duration-300">
                           {task.finalizada && (
@@ -192,17 +217,17 @@ const Card = () => {
                       </label>
                       <span>{task.title}</span>
                     </div>
-                    <SlOptionsVertical onClick={(e) => { e.stopPropagation(); setActiveTaskId(task.task_id); }} />
+                    <SlOptionsVertical onClick={(e) => { e.stopPropagation(); setActiveTaskId(task._id); }} />
                   </div>
                   <br />
                   <p>{task.description}</p>
-                  {activeTaskId === task.task_id && (
+                  {activeTaskId === task._id && (
                     <div className="flex justify-end space-x-2 mt-2">
                       <button onClick={() => {
-                        setEditingTask(task); // Define a tarefa para edição
-                        handleOpenPopup(); // Abre o pop-up para edição
+                        setEditingTask(task);
+                        handleOpenPopup();
                       }} className="bg-blue-500 text-white py-1 px-3 rounded-md">Editar</button>
-                      <button onClick={() => handleToggleDelete(task.task_id)} className="bg-red-500 text-white py-1 px-3 rounded-md">Excluir</button>
+                      <button onClick={() => handleToggleDelete(task)} className="bg-red-500 text-white py-1 px-3 rounded-md">Excluir</button>
                     </div>
                   )}
                 </li>
@@ -214,11 +239,18 @@ const Card = () => {
         </div>
       </div>
       {isPopupOpen && (
-        <PostTask 
-          onClose={handleClosePopup} 
-          onAddTask={handleAddTask} 
-          onUpdateTask={handleUpdateTask} 
-          task={editingTask} // Passa a tarefa que está sendo editada
+        <PostTask
+          onClose={handleClosePopup}
+          onAddTask={handleAddTask}
+          onUpdateTask={handleUpdateTask}
+          task={editingTask}
+        />
+      )}
+      {isDeletePopupOpen && (
+        <ConfirmacaoDeDeletar
+          onClose={handleCloseDeletePopup}
+          onConfirm={handleDeleteTask}
+          task={deletingTask}
         />
       )}
     </>

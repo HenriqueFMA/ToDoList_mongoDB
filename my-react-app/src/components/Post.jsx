@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid'; // Importa a função uuid
+import { v4 as uuidv4 } from 'uuid';
 
 const PostTask = ({ onClose, onAddTask, onUpdateTask, task }) => {
   const [title, setTitle] = useState('');
@@ -8,14 +8,13 @@ const PostTask = ({ onClose, onAddTask, onUpdateTask, task }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Efeito para preencher os campos com dados da tarefa, se estiver editando
   useEffect(() => {
     if (task) {
-      setTitle(task.title || ''); // Garante que não seja undefined
-      setDescription(task.description || ''); // Garante que não seja undefined
+      setTitle(task.title || ''); 
+      setDescription(task.description || ''); 
     } else {
-      setTitle(''); // Limpa o título ao abrir para criar uma nova tarefa
-      setDescription(''); // Limpa a descrição ao abrir para criar uma nova tarefa
+      setTitle(''); 
+      setDescription('');
     }
   }, [task]);
 
@@ -27,28 +26,25 @@ const PostTask = ({ onClose, onAddTask, onUpdateTask, task }) => {
     if (!title || !description) {
       setError('Título e descrição são obrigatórios.');
       setLoading(false);
-      return; // Impede o envio se os campos estiverem vazios
+      return; 
     }
 
     try {
       if (task) {
-        // Se task estiver definida, estamos editando
         const updatedTask = { ...task, title, description };
-        const response = await axios.put(`http://localhost:3000/api/tasks/${task.task_id}/update`, updatedTask);
-        onUpdateTask(response.data); // Atualiza a tarefa no componente pai
+        const response = await axios.put(`http://localhost:3000/api/tasks/${task._id}/update`, updatedTask);
+        onUpdateTask(response.data); 
       } else {
-        // Se não, estamos criando uma nova tarefa
         const newTask = { 
-          task_id: uuidv4(), // Gera um ID único para a nova tarefa
+          
           title, 
           description, 
-          finalizada: false // Define a task como não finalizada por padrão
+          finalizada: false 
         };
         const response = await axios.post('http://localhost:3000/api/tasks', newTask);
-        onAddTask(response.data); // Adiciona a nova tarefa no componente pai
+        onAddTask(response.data); 
       }
 
-      // Limpa os campos e fecha o pop-up
       setTitle('');
       setDescription('');
       onClose();
