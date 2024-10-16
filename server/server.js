@@ -202,6 +202,31 @@ app.put('/api/tasks/:id', async (req, res) => {
   }
 });
 
+// Endpoint para obter uma task por ID
+app.get('/api/tasks/:id', async (req, res) => {
+  const taskId = req.params.id;
+
+  try {
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task não encontrada.' });
+    }
+
+    // Certifique-se de que as datas estão no formato correto
+    const taskData = {
+      ...task.toObject(), // Converte o documento Mongoose para um objeto JavaScript simples
+      created_at: task.created_at, // Incluindo a data de criação
+      updated_at: task.updated_at  // Incluindo a data de atualização
+    };
+
+    res.status(200).json(taskData);
+  } catch (err) {
+    console.error('Erro ao buscar a task:', err);
+    res.status(500).json({ message: 'Erro ao buscar a task.', error: err });
+  }
+});
+
 
 // Inicia o servidor
 app.listen(port, () => {

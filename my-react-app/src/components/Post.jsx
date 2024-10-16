@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
 
 const PostTask = ({ onClose, onAddTask, onUpdateTask, task }) => {
   const [title, setTitle] = useState('');
@@ -31,12 +30,16 @@ const PostTask = ({ onClose, onAddTask, onUpdateTask, task }) => {
 
     try {
       if (task) {
-        const updatedTask = { ...task, title, description };
+        const updatedTask = { 
+          ...task, 
+          title, 
+          description, 
+          updated_at: new Date() // Adicionando a data de atualização
+        };
         const response = await axios.put(`http://localhost:3000/api/tasks/${task._id}/update`, updatedTask);
         onUpdateTask(response.data); 
       } else {
         const newTask = { 
-          
           title, 
           description, 
           finalizada: false 

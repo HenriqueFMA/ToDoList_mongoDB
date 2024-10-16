@@ -15,6 +15,8 @@ const Card = () => {
   const [editingTask, setEditingTask] = useState(null); // Armazena a tarefa que está sendo editada
   const [deletingTask, setDeletingTask] = useState(null);
   const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
+  const [expandedTask, setExpandedTask] = useState(null); // Armazena a tarefa expandida
+
 
 
   // Função para abrir o popup de confirmação de exclusão
@@ -104,10 +106,14 @@ const Card = () => {
   // Atualizar status de finalização de uma task
   const handleToggleFinalizada = async (taskId, finalizada) => {
     try {
-      await axios.put(`http://localhost:3000/api/tasks/${taskId}`, { finalizada: !finalizada });
+      const updatedTask = {
+        finalizada: !finalizada,
+        updated_at: new Date() // Adicionando a data de atualização
+      };
+      await axios.put(`http://localhost:3000/api/tasks/${taskId}`, updatedTask);
       setTasks(prevTasks =>
         prevTasks.map(task =>
-          task._id === taskId ? { ...task, finalizada: !finalizada } : task
+          task._id === taskId ? { ...task, finalizada: !finalizada, updated_at: updatedTask.updated_at } : task
         )
       );
     } catch (error) {
@@ -118,14 +124,19 @@ const Card = () => {
   // Atualizar todas as tasks para "finalizada"
   const handleToggleFinalizadaAll = async () => {
     try {
-      await axios.put('http://localhost:3000/api/tasks', { finalizada: true }); // Muda todas para finalizada
+      const updatedTasks = {
+        finalizada: true,
+        updated_at: new Date() // Muda todas para finalizada e atualiza a data
+      };
+      await axios.put('http://localhost:3000/api/tasks', updatedTasks); // Muda todas para finalizada
       setTasks(prevTasks =>
-        prevTasks.map(task => ({ ...task, finalizada: true })) // Atualiza todas as tarefas para finalizadas
+        prevTasks.map(task => ({ ...task, finalizada: true, updated_at: updatedTasks.updated_at })) // Atualiza todas as tarefas para finalizadas
       );
     } catch (error) {
       setError('Erro ao atualizar as tasks.');
     }
   };
+
 
 
 
@@ -150,6 +161,20 @@ const Card = () => {
   useEffect(() => {
     fetchNotFinalizedTasks(); // Chama a função quando o componente é montado
   }, []); // Dependência vazia para garantir que execute apenas uma vez
+  // Função para buscar uma task específica por ID
+
+  const fetchTaskById = async (taskId) => {
+    try {
+      const response = await axios.get(`http://localhost:3000/api/tasks/${taskId}`);
+      console.log(response.data); // Adicione este log
+      setExpandedTask(response.data); // Armazena a tarefa expandida no estado
+    } catch (error) {
+      setError('Erro ao buscar os detalhes da tarefa.');
+    }
+  };
+
+
+
 
   // Renderiza o componente
   if (loading) return <p>Carregando...</p>;
@@ -217,17 +242,44 @@ const Card = () => {
                       </label>
                       <span>{task.title}</span>
                     </div>
-                    <SlOptionsVertical onClick={(e) => { e.stopPropagation(); setActiveTaskId(task._id); }} />
+                    <SlOptionsVertical
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (expandedTask && expandedTask._id === task._id) {
+                          // Se a tarefa já estiver expandida, fecha-a
+                          setExpandedTask(null);
+                        } else {
+                          setActiveTaskId(task._id);
+                          fetchTaskById(task._id); // Chama o fetch aqui
+                        }
+                      }}
+                    />
                   </div>
-                  <br />
-                  <p>{task.description}</p>
-                  {activeTaskId === task._id && (
-                    <div className="flex justify-end space-x-2 mt-2">
-                      <button onClick={() => {
-                        setEditingTask(task);
-                        handleOpenPopup();
-                      }} className="bg-blue-500 text-white py-1 px-3 rounded-md">Editar</button>
-                      <button onClick={() => handleToggleDelete(task)} className="bg-red-500 text-white py-1 px-3 rounded-md">Excluir</button>
+
+                  {/* Se a tarefa está expandida, mostra mais detalhes */}
+                  {expandedTask && expandedTask._id === task._id && (
+                    <div className="mt-4">
+                      <p><strong>Descrição:</strong> {expandedTask.description}</p>
+                      <p>
+                        <strong>Data de criação:</strong>
+                        {expandedTask.created_at ? new Date(expandedTask.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Data não disponível'}
+                      </p>
+
+                      <p>
+                        <strong>Data de atualização:</strong>
+                        {expandedTask.updated_at ? new Date(expandedTask.updated_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Data não disponível'}
+                      </p>
+
+                      <p><strong>Status:</strong> {expandedTask.finalizada ? 'Finalizada' : 'Pendente'}</p>
+
+                      {/* Botões de editar/excluir para a tarefa expandida */}
+                      <div className="flex justify-end space-x-2 mt-2">
+                        <button onClick={() => {
+                          setEditingTask(expandedTask);
+                          handleOpenPopup();
+                        }} className="bg-blue-500 text-white py-1 px-3 rounded-md">Editar</button>
+                        <button onClick={() => handleToggleDelete(expandedTask)} className="bg-red-500 text-white py-1 px-3 rounded-md">Excluir</button>
+                      </div>
                     </div>
                   )}
                 </li>
@@ -237,6 +289,9 @@ const Card = () => {
             )}
           </ul>
         </div>
+
+
+
       </div>
       {isPopupOpen && (
         <PostTask
@@ -255,6 +310,8 @@ const Card = () => {
       )}
     </>
   );
+  console.log(expandedTask);
+
 };
 
 export default Card;
